@@ -14,6 +14,71 @@ simulation, with a no-hardware demo path.
 
 ---
 
+## How it works in plain terms
+
+Picture a warehouse with a hundred robots. Each robot is like a phone that keeps
+texting a short status update: where I am, my battery, am I healthy. Beacon is
+the system that receives all those texts, keeps a live board of where everyone
+is right now, files every update away for later, and taps someone on the
+shoulder when a robot is in trouble.
+
+The tricky ideas, in everyday language:
+
+- **Hot path vs cold path.** Two copies of the data go to two different places
+  for two different jobs. The hot path is the live dashboard: it only needs the
+  latest status of each robot and it needs it instantly. The cold path is the
+  filing cabinet: it keeps the full history so you can answer "how did battery
+  drain look last Tuesday" later, cheaply. Trying to do both jobs with one store
+  is what makes fleet systems slow and expensive.
+
+- **Downsampling at the edge.** The robot's sensors chatter dozens of times a
+  second, but the operator does not need that firehose. The robot summarizes and
+  sends about once a second. Cutting the data down on the robot, before it hits
+  the network, is the single biggest thing that keeps costs sane.
+
+- **mTLS (per-robot certificates).** Every robot carries its own ID badge (an
+  X.509 certificate). It can only clock in as itself and only speak on its own
+  channel. If one robot is stolen or compromised, you cancel that one badge
+  instead of changing the locks for the whole building.
+
+- **Device shadow.** A sticky note in the cloud that holds each robot's desired
+  settings (for example how often to report). If a robot was offline when you
+  changed the setting, it reads the sticky note the moment it reconnects and
+  catches up. You never have to assume every robot is online at once.
+
+- **The offline sweep.** The live path only reacts when a message arrives, so a
+  robot that crashes and goes silent would slip through unnoticed. A separate
+  job runs a roll call every minute and flags anyone who has not checked in.
+  Silence is treated as its own alarm.
+
+---
+
+## Follow one telemetry message
+
+To make the whole pipeline concrete, here is the life of a single battery
+reading from a robot named `robot-042`:
+
+1. On the robot, sensors update constantly. The bridge keeps only the newest
+   value from each and, once a second, packs them into one small JSON message
+   (position, battery, health) tagged with the robot id and a timestamp.
+2. It publishes that message over an encrypted MQTT connection to AWS IoT Core,
+   on the topic `robots/robot-042/telemetry`. The robot's certificate proves who
+   it is.
+3. An IoT rule copies the message two ways at once: into Kinesis (live) and into
+   Firehose (history).
+4. The live copy triggers a Lambda. It writes robot-042's newest state to
+   DynamoDB (overwriting the old "latest"), records a metric, and checks
+   thresholds. Battery is 14 percent, under the limit, so it publishes an alert
+   to SNS and you get an email.
+5. The history copy is buffered by Firehose and written to S3 as compressed
+   Parquet, filed under today's date, ready to be queried with Athena whenever.
+6. Meanwhile the dashboard, reading only the "latest" row per robot, shows
+   robot-042 turn red in about a second.
+
+Same message, two destinations, two jobs. That split is the heart of the design.
+
+---
+
 ## Architecture
 
 ```
@@ -43,6 +108,19 @@ simulation, with a no-hardware demo path.
    Scheduled EventBridge (1 min) ──▶ Lambda alarm_evaluator ──▶ SNS
    (detects robots that went silent: absence of data is a signal)
 ```
+
+### The AWS pieces, one line each
+
+- **IoT Core**: the front door. Robots connect here over secure MQTT.
+- **Kinesis Data Stream**: the live conveyor belt feeding the hot path.
+- **Lambda (processor)**: reads the belt, updates the latest state, raises alerts.
+- **DynamoDB**: the live board. One fast row per robot, plus short-lived history.
+- **CloudWatch**: the graphs (battery, speed) over time.
+- **SNS**: the notifier that emails or texts you on an alert.
+- **Firehose**: the archivist that batches messages for storage.
+- **S3 + Glue + Athena**: the filing cabinet (S3), its index (Glue), and the way
+  you query it with SQL (Athena).
+- **EventBridge**: the clock that triggers the every-minute roll call.
 
 See `docs/architecture.md` for the message schema and the reasoning behind
 each split.
@@ -168,26 +246,6 @@ stale. That is the dead-man's-switch half of monitoring.
 **Device shadow for config.** Desired state (for example the publish rate)
 lives in the shadow. A robot that was offline reconciles on reconnect. This is
 how you push config to robots without assuming they are all online.
-
----
-
-## Talking points for interviews
-
-Questions this project prepares you to answer:
-
-- How do you keep 10,000 robots from overwhelming ingest? (edge downsampling,
-  Kinesis shard sizing, partition key on device_id, DynamoDB on-demand)
-- How do you authenticate robots securely? (per-device X.509, policy variables,
-  cert revocation)
-- What happens to a message on a flaky network? (QoS 1, clean_session false so
-  the session resumes, idempotent writes)
-- How do you detect a robot that crashed and stopped publishing? (scheduled
-  offline sweep, not the stream)
-- Why two storage systems? (DynamoDB for hot O(1) reads vs S3 Parquet for cheap
-  historical analytics, and the cost tradeoff)
-- Where does the deprecated RoboMaker fit? (it does not: IoT Core plus
-  Greengrass V2 for deployment, AWS Batch for containerized sim)
-- How would you push a config change to the fleet? (device shadow desired state)
 
 ---
 
