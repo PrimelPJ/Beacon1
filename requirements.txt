@@ -1,0 +1,4 @@
+# For the edge bridge and the fleet simulator
+awsiotsdk>=1.21
+# For local Lambda testing
+boto3>=1.34

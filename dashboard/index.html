@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Beacon Fleet Monitor</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: #0b0f14; color: #d7e0ea; }
+  header { padding: 16px 20px; border-bottom: 1px solid #1b2733; display: flex;
+           align-items: baseline; gap: 12px; }
+  h1 { font-size: 16px; margin: 0; letter-spacing: 0.06em; }
+  .sub { color: #5f7186; font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          gap: 12px; padding: 20px; }
+  .card { border: 1px solid #1b2733; border-radius: 10px; padding: 14px 16px; background: #0f151c; }
+  .row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+  .k { color: #6b7f93; }
+  .id { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+  .ok { background: #10331f; color: #57d98a; }
+  .warn { background: #3a2f10; color: #e8c451; }
+  .err { background: #3a1414; color: #f28b82; }
+  .bar { height: 6px; border-radius: 4px; background: #1b2733; overflow: hidden; margin-top: 4px; }
+  .bar > span { display: block; height: 100%; background: #57d98a; }
+  .bar.low > span { background: #f28b82; }
+  footer { padding: 12px 20px; color: #4a5b6d; font-size: 11px; border-top: 1px solid #1b2733; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BEACON</h1>
+  <span class="sub" id="status">connecting to source...</span>
+</header>
+<div class="grid" id="fleet"></div>
+<footer>
+  Point this at your data source by setting <code>SOURCE_URL</code> below. With no
+  source it renders demo data so you can screenshot it. In production, back it with
+  an API Gateway + Lambda that runs a DynamoDB query for sk = "LATEST".
+</footer>
+
+<script>
+// Set to your query API, for example:
+// const SOURCE_URL = "https://<api-id>.execute-api.us-west-2.amazonaws.com/latest";
+const SOURCE_URL = null;
+
+function demoData() {
+  const ids = ["robot-001","robot-002","robot-003","robot-004"];
+  return ids.map((id, i) => ({
+    device_id: id,
+    ts: Date.now() - i * 1500,
+    pose: { x: (Math.random()*10-5).toFixed(2), y: (Math.random()*10-5).toFixed(2) },
+    velocity: { linear: (Math.random()*0.6).toFixed(2) },
+    battery: { percent: [82, 47, 14, 91][i] },
+    health: { ok: i !== 2, diagnostics: i === 2 ? "error" : "ok" }
+  }));
+}
+
+function badge(item) {
+  const stale = (Date.now() - item.ts) > 30000;
+  if (stale) return `<span class="pill err">OFFLINE</span>`;
+  if (!item.health.ok) return `<span class="pill err">${(item.health.diagnostics||"error").toUpperCase()}</span>`;
+  if ((item.battery.percent ?? 100) <= 20) return `<span class="pill warn">LOW BATT</span>`;
+  return `<span class="pill ok">OK</span>`;
+}
+
+function render(items) {
+  const el = document.getElementById("fleet");
+  el.innerHTML = items.map(it => {
+    const b = it.battery.percent ?? 0;
+    return `<div class="card">
+      <div class="row"><span class="id">${it.device_id}</span>${badge(it)}</div>
+      <div class="row"><span class="k">battery</span><span>${b}%</span></div>
+      <div class="bar ${b <= 20 ? "low" : ""}"><span style="width:${b}%"></span></div>
+      <div class="row"><span class="k">speed</span><span>${it.velocity.linear} m/s</span></div>
+      <div class="row"><span class="k">pose</span><span>${it.pose.x}, ${it.pose.y}</span></div>
+      <div class="row"><span class="k">last seen</span><span>${Math.round((Date.now()-it.ts)/1000)}s ago</span></div>
+    </div>`;
+  }).join("");
+}
+
+async function tick() {
+  const status = document.getElementById("status");
+  try {
+    if (SOURCE_URL) {
+      const r = await fetch(SOURCE_URL);
+      render(await r.json());
+      status.textContent = "live  " + new Date().toLocaleTimeString();
+    } else {
+      render(demoData());
+      status.textContent = "demo data (no SOURCE_URL set)";
+    }
+  } catch (e) {
+    status.textContent = "source error: " + e.message;
+  }
+}
+tick();
+setInterval(tick, 2000);
+</script>
+</body>
+</html>

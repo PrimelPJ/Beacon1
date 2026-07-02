@@ -1,0 +1,16 @@
+# Bring up one robot bridge. Mount your cert directory and set the endpoint.
+# For a multi-robot demo, prefer scripts/simulate_fleet.py instead.
+services:
+  robot-001:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.robot
+    environment:
+      DEVICE_ID: robot-001
+      IOT_ENDPOINT: ${IOT_ENDPOINT}
+      CERT_PATH: /certs/robot-001.cert.pem
+      KEY_PATH: /certs/robot-001.private.key
+      CA_PATH: /certs/AmazonRootCA1.pem
+      PUBLISH_HZ: "1.0"
+    volumes:
+      - ./certs:/certs:ro

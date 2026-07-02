@@ -1,0 +1,21 @@
+# certs and secrets never go in git
+certs/
+*.pem
+*.key
+*.private.key
+
+# terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+cloud/infra/build/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# ros2
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
