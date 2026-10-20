@@ -26,6 +26,10 @@ from sensor_msgs.msg import BatteryState
 from geometry_msgs.msg import Twist
 from diagnostic_msgs.msg import DiagnosticArray
 
+# Number of seconds without an odometry update before the robot is flagged
+# as stale in the telemetry health payload.
+STALE_ODOM_THRESHOLD_S: float = 5.0
+
 
 @dataclass
 class TelemetryState:
@@ -127,5 +131,6 @@ class TelemetryCollector:
                 "ok": s.diagnostics_ok,
                 "faults": s.faults,
                 "odom_age_s": round(odom_age, 2) if odom_age is not None else None,
+                "odom_stale": odom_age is not None and odom_age > STALE_ODOM_THRESHOLD_S,
             },
         }
