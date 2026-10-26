@@ -33,6 +33,7 @@ ALERT_TOPIC_ARN = os.environ.get("ALERT_TOPIC_ARN", "")
 LOW_BATTERY_PCT = float(os.environ.get("LOW_BATTERY_PCT", "20"))
 STALE_ODOM_S = float(os.environ.get("STALE_ODOM_S", "5"))
 HISTORY_TTL_DAYS = int(os.environ.get("HISTORY_TTL_DAYS", "14"))
+MAX_ALERTS_PER_INVOCATION = int(os.environ.get("MAX_ALERTS_PER_INVOCATION", "5"))
 
 _dynamodb = boto3.resource("dynamodb")
 _table = _dynamodb.Table(TABLE_NAME)
@@ -108,15 +109,16 @@ def handler(event, context):
         _persist(t)
         _emit_metrics(t)
 
-        alerts = _evaluate_alerts(t)
-        if alerts and _sns:
-            _sns.publish(
-                TopicArn=ALERT_TOPIC_ARN,
-                Subject=f"[Beacon] {t['device_id']} alert",
-                Message=json.dumps({"device_id": t["device_id"], "ts": t["ts"],
-                                    "alerts": alerts}, indent=2),
-            )
-            alerted += 1
+        if alerted < MAX_ALERTS_PER_INVOCATION:
+            alerts = _evaluate_alerts(t)
+            if alerts and _sns:
+                _sns.publish(
+                    TopicArn=ALERT_TOPIC_ARN,
+                    Subject=f"[Beacon] {t['device_id']} alert",
+                    Message=json.dumps({"device_id": t["device_id"], "ts": t["ts"],
+                                        "alerts": alerts}, indent=2),
+                )
+                alerted += 1
         processed += 1
 
     return {"processed": processed, "alerted": alerted}
