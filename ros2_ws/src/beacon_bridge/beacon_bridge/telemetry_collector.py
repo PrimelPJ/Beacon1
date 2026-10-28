@@ -30,6 +30,10 @@ from diagnostic_msgs.msg import DiagnosticArray
 # as stale in the telemetry health payload.
 STALE_ODOM_THRESHOLD_S: float = 5.0
 
+# Battery percentage below which the robot is flagged as low-battery
+# in the telemetry health payload.
+LOW_BATTERY_THRESHOLD_PCT: float = 20.0
+
 
 @dataclass
 class TelemetryState:
@@ -119,6 +123,10 @@ class TelemetryCollector:
         """Build one telemetry message. Called by the bridge on its publish timer."""
         s = self._state
         odom_age = time.time() - s.last_odom_ts if s.last_odom_ts else None
+        battery_low = (
+            s.battery_percent is not None
+            and s.battery_percent < LOW_BATTERY_THRESHOLD_PCT
+        )
         return {
             "device_id": device_id,
             "ts": int(time.time() * 1000),  # epoch millis, sortable in DynamoDB
@@ -132,5 +140,6 @@ class TelemetryCollector:
                 "faults": s.faults,
                 "odom_age_s": round(odom_age, 2) if odom_age is not None else None,
                 "odom_stale": odom_age is not None and odom_age > STALE_ODOM_THRESHOLD_S,
+                "battery_low": battery_low,
             },
         }
