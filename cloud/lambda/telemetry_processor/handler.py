@@ -31,6 +31,7 @@ TABLE_NAME = os.environ.get("TABLE_NAME", "beacon-telemetry")
 METRIC_NAMESPACE = os.environ.get("METRIC_NAMESPACE", "Beacon/Fleet")
 ALERT_TOPIC_ARN = os.environ.get("ALERT_TOPIC_ARN", "")
 LOW_BATTERY_PCT = float(os.environ.get("LOW_BATTERY_PCT", "20"))
+CRITICAL_BATTERY_PCT = float(os.environ.get("CRITICAL_BATTERY_PCT", "5"))
 STALE_ODOM_S = float(os.environ.get("STALE_ODOM_S", "5"))
 HISTORY_TTL_DAYS = int(os.environ.get("HISTORY_TTL_DAYS", "14"))
 MAX_ALERTS_PER_INVOCATION = int(os.environ.get("MAX_ALERTS_PER_INVOCATION", "5"))
@@ -49,7 +50,9 @@ def _to_decimal(obj):
 def _evaluate_alerts(t: dict) -> list:
     alerts = []
     battery = (t.get("battery") or {}).get("percent")
-    if battery is not None and battery <= LOW_BATTERY_PCT:
+    if battery is not None and battery <= CRITICAL_BATTERY_PCT:
+        alerts.append(f"battery critical: {battery}%")
+    elif battery is not None and battery <= LOW_BATTERY_PCT:
         alerts.append(f"battery low: {battery}%")
 
     health = t.get("health") or {}
