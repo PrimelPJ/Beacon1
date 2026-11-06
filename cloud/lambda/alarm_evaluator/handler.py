@@ -23,6 +23,7 @@ from boto3.dynamodb.conditions import Attr
 TABLE_NAME = os.environ.get("TABLE_NAME", "beacon-telemetry")
 ALERT_TOPIC_ARN = os.environ.get("ALERT_TOPIC_ARN", "")
 OFFLINE_THRESHOLD_S = float(os.environ.get("OFFLINE_THRESHOLD_S", "30"))
+CRITICAL_OFFLINE_THRESHOLD_S = float(os.environ.get("CRITICAL_OFFLINE_THRESHOLD_S", "120"))
 
 _table = boto3.resource("dynamodb").Table(TABLE_NAME)
 _sns = boto3.client("sns") if ALERT_TOPIC_ARN else None
@@ -34,12 +35,14 @@ def handler(event, context):
 
     # Scan only LATEST items. For large fleets use a GSI on sk instead of a scan.
     resp = _table.scan(FilterExpression=Attr("sk").eq("LATEST"))
+    critical_cutoff = now_ms - int(CRITICAL_OFFLINE_THRESHOLD_S * 1000)
     offline = []
     for item in resp.get("Items", []):
         ts = int(item.get("ts", 0))
         if ts < cutoff:
             offline.append({"device_id": item["device_id"],
-                            "last_seen_s_ago": round((now_ms - ts) / 1000, 1)})
+                            "last_seen_s_ago": round((now_ms - ts) / 1000, 1),
+                            "critical": ts < critical_cutoff})
 
     if offline and _sns:
         _sns.publish(
