@@ -34,6 +34,9 @@ STALE_ODOM_THRESHOLD_S: float = 5.0
 # in the telemetry health payload.
 LOW_BATTERY_THRESHOLD_PCT: float = 20.0
 
+# Battery percentage below which the robot is flagged as critically low.
+CRITICAL_BATTERY_THRESHOLD_PCT: float = 8.0
+
 
 @dataclass
 class TelemetryState:
@@ -48,6 +51,7 @@ class TelemetryState:
     battery_voltage: Optional[float] = None
     cmd_linear: Optional[float] = None
     cmd_angular: Optional[float] = None
+    motor_temp_c: Optional[float] = None
     diagnostics_ok: bool = True
     diagnostics_summary: str = "unknown"
     last_odom_ts: float = 0.0
@@ -127,6 +131,10 @@ class TelemetryCollector:
             s.battery_percent is not None
             and s.battery_percent < LOW_BATTERY_THRESHOLD_PCT
         )
+        battery_critical = (
+            s.battery_percent is not None
+            and s.battery_percent < CRITICAL_BATTERY_THRESHOLD_PCT
+        )
         return {
             "device_id": device_id,
             "ts": int(time.time() * 1000),  # epoch millis, sortable in DynamoDB
@@ -134,6 +142,7 @@ class TelemetryCollector:
             "velocity": {"linear": s.linear_speed, "angular": s.angular_speed},
             "command": {"linear": s.cmd_linear, "angular": s.cmd_angular},
             "battery": {"percent": s.battery_percent, "voltage": s.battery_voltage},
+            "thermal": {"motor_temp_c": s.motor_temp_c},
             "health": {
                 "diagnostics": s.diagnostics_summary,
                 "ok": s.diagnostics_ok,
@@ -141,5 +150,6 @@ class TelemetryCollector:
                 "odom_age_s": round(odom_age, 2) if odom_age is not None else None,
                 "odom_stale": odom_age is not None and odom_age > STALE_ODOM_THRESHOLD_S,
                 "battery_low": battery_low,
+                "battery_critical": battery_critical,
             },
         }
