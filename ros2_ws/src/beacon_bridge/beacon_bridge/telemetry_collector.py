@@ -37,6 +37,9 @@ LOW_BATTERY_THRESHOLD_PCT: float = 20.0
 # Battery percentage below which the robot is flagged as critically low.
 CRITICAL_BATTERY_THRESHOLD_PCT: float = 8.0
 
+# Motor temperature in Celsius above which the robot is flagged as overheating.
+MAX_MOTOR_TEMP_C: float = 80.0
+
 
 @dataclass
 class TelemetryState:
@@ -135,6 +138,10 @@ class TelemetryCollector:
             s.battery_percent is not None
             and s.battery_percent < CRITICAL_BATTERY_THRESHOLD_PCT
         )
+        motor_overheating = (
+            s.motor_temp_c is not None
+            and s.motor_temp_c > MAX_MOTOR_TEMP_C
+        )
         return {
             "device_id": device_id,
             "ts": int(time.time() * 1000),  # epoch millis, sortable in DynamoDB
@@ -151,5 +158,6 @@ class TelemetryCollector:
                 "odom_stale": odom_age is not None and odom_age > STALE_ODOM_THRESHOLD_S,
                 "battery_low": battery_low,
                 "battery_critical": battery_critical,
+                "motor_overheating": motor_overheating,
             },
         }
