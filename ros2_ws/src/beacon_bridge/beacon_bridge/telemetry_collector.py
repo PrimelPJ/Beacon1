@@ -37,6 +37,10 @@ LOW_BATTERY_THRESHOLD_PCT: float = 20.0
 # Battery percentage below which the robot is flagged as critically low.
 CRITICAL_BATTERY_THRESHOLD_PCT: float = 8.0
 
+# Number of seconds without any telemetry before the robot is flagged as
+# critically offline (longer gap than odom_stale, e.g. full connectivity loss).
+CRITICAL_OFFLINE_THRESHOLD_S: float = 120.0
+
 
 @dataclass
 class TelemetryState:
@@ -135,6 +139,7 @@ class TelemetryCollector:
             s.battery_percent is not None
             and s.battery_percent < CRITICAL_BATTERY_THRESHOLD_PCT
         )
+        offline_critical = odom_age is not None and odom_age > CRITICAL_OFFLINE_THRESHOLD_S
         return {
             "device_id": device_id,
             "ts": int(time.time() * 1000),  # epoch millis, sortable in DynamoDB
@@ -151,5 +156,6 @@ class TelemetryCollector:
                 "odom_stale": odom_age is not None and odom_age > STALE_ODOM_THRESHOLD_S,
                 "battery_low": battery_low,
                 "battery_critical": battery_critical,
+                "offline_critical": offline_critical,
             },
         }
