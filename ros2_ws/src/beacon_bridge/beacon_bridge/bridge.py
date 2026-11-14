@@ -36,8 +36,10 @@ class BeaconBridge(Node):
         self.declare_parameter("key_path", "")
         self.declare_parameter("ca_path", "")
         self.declare_parameter("publish_hz", 1.0)
+        self.declare_parameter("topic_prefix", "robots")
 
         self._device_id = self.get_parameter("device_id").value
+        self._topic_prefix = self.get_parameter("topic_prefix").value
         endpoint = self.get_parameter("iot_endpoint").value
         cert = self.get_parameter("cert_path").value
         key = self.get_parameter("key_path").value
@@ -63,7 +65,7 @@ class BeaconBridge(Node):
             self._iot = None
             self.get_logger().warn("no iot_endpoint set, running in dry-run (log only) mode")
 
-        self._topic = f"robots/{self._device_id}/telemetry"
+        self._topic = f"{self._topic_prefix}/{self._device_id}/telemetry"
         self._timer = self.create_timer(1.0 / self._hz, self._on_timer)
 
     def _on_timer(self) -> None:
