@@ -34,6 +34,10 @@ STALE_ODOM_THRESHOLD_S: float = 5.0
 # in the telemetry health payload.
 LOW_BATTERY_THRESHOLD_PCT: float = 20.0
 
+# Battery percentage below which a graduated warning is surfaced before
+# the robot crosses into the low-battery state.
+WARN_BATTERY_THRESHOLD_PCT: float = 15.0
+
 # Battery percentage below which the robot is flagged as critically low.
 CRITICAL_BATTERY_THRESHOLD_PCT: float = 8.0
 
@@ -135,6 +139,10 @@ class TelemetryCollector:
             s.battery_percent is not None
             and s.battery_percent < LOW_BATTERY_THRESHOLD_PCT
         )
+        battery_warn = (
+            s.battery_percent is not None
+            and s.battery_percent < WARN_BATTERY_THRESHOLD_PCT
+        )
         battery_critical = (
             s.battery_percent is not None
             and s.battery_percent < CRITICAL_BATTERY_THRESHOLD_PCT
@@ -154,6 +162,7 @@ class TelemetryCollector:
                 "faults": s.faults,
                 "odom_age_s": round(odom_age, 2) if odom_age is not None else None,
                 "odom_stale": odom_age is not None and odom_age > STALE_ODOM_THRESHOLD_S,
+                "battery_warn": battery_warn,
                 "battery_low": battery_low,
                 "battery_critical": battery_critical,
                 "offline_critical": offline_critical,
