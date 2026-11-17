@@ -45,6 +45,10 @@ CRITICAL_BATTERY_THRESHOLD_PCT: float = 8.0
 # critically offline (longer gap than odom_stale, e.g. full connectivity loss).
 CRITICAL_OFFLINE_THRESHOLD_S: float = 120.0
 
+# CPU usage percentage above which the onboard compute is flagged as under
+# high load in the telemetry health payload.
+HIGH_CPU_THRESHOLD_PCT: float = 85.0
+
 
 @dataclass
 class TelemetryState:
