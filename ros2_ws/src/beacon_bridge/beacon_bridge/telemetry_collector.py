@@ -45,6 +45,10 @@ CRITICAL_BATTERY_THRESHOLD_PCT: float = 8.0
 # critically offline (longer gap than odom_stale, e.g. full connectivity loss).
 CRITICAL_OFFLINE_THRESHOLD_S: float = 120.0
 
+# CPU usage percentage above which the onboard compute is flagged as under
+# high load in the telemetry health payload.
+HIGH_CPU_THRESHOLD_PCT: float = 85.0
+
 
 @dataclass
 class TelemetryState:
@@ -60,6 +64,7 @@ class TelemetryState:
     cmd_linear: Optional[float] = None
     cmd_angular: Optional[float] = None
     motor_temp_c: Optional[float] = None
+    cpu_usage_pct: Optional[float] = None
     diagnostics_ok: bool = True
     diagnostics_summary: str = "unknown"
     last_odom_ts: float = 0.0
@@ -155,7 +160,7 @@ class TelemetryCollector:
             "velocity": {"linear": s.linear_speed, "angular": s.angular_speed},
             "command": {"linear": s.cmd_linear, "angular": s.cmd_angular},
             "battery": {"percent": s.battery_percent, "voltage": s.battery_voltage},
-            "thermal": {"motor_temp_c": s.motor_temp_c},
+            "thermal": {"motor_temp_c": s.motor_temp_c, "cpu_usage_pct": s.cpu_usage_pct},
             "health": {
                 "diagnostics": s.diagnostics_summary,
                 "ok": s.diagnostics_ok,
