@@ -60,6 +60,7 @@ class TelemetryState:
     cmd_linear: Optional[float] = None
     cmd_angular: Optional[float] = None
     motor_temp_c: Optional[float] = None
+    cpu_usage_pct: Optional[float] = None
     diagnostics_ok: bool = True
     diagnostics_summary: str = "unknown"
     last_odom_ts: float = 0.0
@@ -155,7 +156,7 @@ class TelemetryCollector:
             "velocity": {"linear": s.linear_speed, "angular": s.angular_speed},
             "command": {"linear": s.cmd_linear, "angular": s.cmd_angular},
             "battery": {"percent": s.battery_percent, "voltage": s.battery_voltage},
-            "thermal": {"motor_temp_c": s.motor_temp_c},
+            "thermal": {"motor_temp_c": s.motor_temp_c, "cpu_usage_pct": s.cpu_usage_pct},
             "health": {
                 "diagnostics": s.diagnostics_summary,
                 "ok": s.diagnostics_ok,
