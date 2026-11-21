@@ -24,6 +24,8 @@ TABLE_NAME = os.environ.get("TABLE_NAME", "beacon-telemetry")
 ALERT_TOPIC_ARN = os.environ.get("ALERT_TOPIC_ARN", "")
 OFFLINE_THRESHOLD_S = float(os.environ.get("OFFLINE_THRESHOLD_S", "30"))
 CRITICAL_OFFLINE_THRESHOLD_S = float(os.environ.get("CRITICAL_OFFLINE_THRESHOLD_S", "120"))
+MAX_SCAN_ITEMS = int(os.environ.get("MAX_SCAN_ITEMS", "10000"))
+SCAN_SEGMENT_COUNT = int(os.environ.get("SCAN_SEGMENT_COUNT", "1"))
 
 _table = boto3.resource("dynamodb").Table(TABLE_NAME)
 _sns = boto3.client("sns") if ALERT_TOPIC_ARN else None
@@ -34,7 +36,7 @@ def handler(event, context):
     cutoff = now_ms - int(OFFLINE_THRESHOLD_S * 1000)
 
     # Scan only LATEST items. For large fleets use a GSI on sk instead of a scan.
-    resp = _table.scan(FilterExpression=Attr("sk").eq("LATEST"))
+    resp = _table.scan(FilterExpression=Attr("sk").eq("LATEST"), Limit=MAX_SCAN_ITEMS)
     critical_cutoff = now_ms - int(CRITICAL_OFFLINE_THRESHOLD_S * 1000)
     offline = []
     for item in resp.get("Items", []):
