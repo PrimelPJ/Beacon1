@@ -35,6 +35,7 @@ CRITICAL_BATTERY_PCT = float(os.environ.get("CRITICAL_BATTERY_PCT", "5"))
 STALE_ODOM_S = float(os.environ.get("STALE_ODOM_S", "5"))
 HISTORY_TTL_DAYS = int(os.environ.get("HISTORY_TTL_DAYS", "14"))
 MAX_ALERTS_PER_INVOCATION = int(os.environ.get("MAX_ALERTS_PER_INVOCATION", "5"))
+ALERT_SUBJECT_PREFIX = os.environ.get("ALERT_SUBJECT_PREFIX", "[Beacon]")
 
 _dynamodb = boto3.resource("dynamodb")
 _table = _dynamodb.Table(TABLE_NAME)
@@ -117,7 +118,7 @@ def handler(event, context):
             if alerts and _sns:
                 _sns.publish(
                     TopicArn=ALERT_TOPIC_ARN,
-                    Subject=f"[Beacon] {t['device_id']} alert",
+                    Subject=f"{ALERT_SUBJECT_PREFIX} {t['device_id']} alert",
                     Message=json.dumps({"device_id": t["device_id"], "ts": t["ts"],
                                         "alerts": alerts}, indent=2),
                 )
