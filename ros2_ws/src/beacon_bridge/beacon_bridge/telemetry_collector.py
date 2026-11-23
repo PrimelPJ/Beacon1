@@ -49,6 +49,10 @@ CRITICAL_OFFLINE_THRESHOLD_S: float = 120.0
 # high load in the telemetry health payload.
 HIGH_CPU_THRESHOLD_PCT: float = 85.0
 
+# Memory usage percentage above which the onboard compute is flagged as
+# under memory pressure in the telemetry health payload.
+HIGH_MEMORY_THRESHOLD_PCT: float = 80.0
+
 
 @dataclass
 class TelemetryState:
@@ -66,6 +70,7 @@ class TelemetryState:
     motor_temp_c: Optional[float] = None
     cpu_usage_pct: Optional[float] = None
     disk_usage_pct: Optional[float] = None
+    memory_usage_pct: Optional[float] = None
     diagnostics_ok: bool = True
     diagnostics_summary: str = "unknown"
     last_odom_ts: float = 0.0
@@ -161,7 +166,7 @@ class TelemetryCollector:
             "velocity": {"linear": s.linear_speed, "angular": s.angular_speed},
             "command": {"linear": s.cmd_linear, "angular": s.cmd_angular},
             "battery": {"percent": s.battery_percent, "voltage": s.battery_voltage},
-            "thermal": {"motor_temp_c": s.motor_temp_c, "cpu_usage_pct": s.cpu_usage_pct, "disk_usage_pct": s.disk_usage_pct},
+            "thermal": {"motor_temp_c": s.motor_temp_c, "cpu_usage_pct": s.cpu_usage_pct, "disk_usage_pct": s.disk_usage_pct, "memory_usage_pct": s.memory_usage_pct},
             "health": {
                 "diagnostics": s.diagnostics_summary,
                 "ok": s.diagnostics_ok,
